@@ -72,6 +72,8 @@ class _PortalJobint:
 
     nombre = "jobint"
     base = ""
+    # El listado lo arma React: el HTML del servidor viene vacío.
+    necesita_navegador = True
 
     def url(self, segmento: Segmento) -> str:
         rubro = RUBROS.get(segmento.rubro or "")
@@ -85,9 +87,9 @@ class _PortalJobint:
         return f"{self.base}/empleos.html"
 
     def buscar(self, segmento: Segmento) -> list[VacanteCruda]:
-        # `stealth=True`: el listado lo arma React, el HTML del servidor viene
-        # vacío. Sin navegador este portal no devuelve nada.
-        pagina = traer_pagina(self.url(segmento), timeout=45, stealth=True)
+        pagina = traer_pagina(
+            self.url(segmento), timeout=45, stealth=self.necesita_navegador
+        )
         crudas = []
         vistos: set[str] = set()
         for nodo in nodos(pagina, SEL_AVISO):

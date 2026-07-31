@@ -1,10 +1,11 @@
-"""Vocabulario compartido de los portales y orquestación de la búsqueda.
+"""Orquestación de la búsqueda de avisos en los portales.
 
-Las zonas y los rubros son **listas cerradas** a propósito. Con Apollo ya
-aprendimos que un campo de texto libre es una trampa: quien busca escribe
-«Logística», el portal espera otra cosa, no matchea nada y la conclusión
-equivocada es que no hay empresas de logística. Acá cada opción que se muestra
-en castellano tiene su traducción al slug que espera cada portal.
+Los portales son el carril de **señal**, no el de descubrimiento: dicen qué está
+buscando una empresa y desde cuándo. Quién es cliente lo define
+`talanton/directorio/`, que no depende de que haya un aviso publicado hoy.
+
+El vocabulario de zonas y rubros vive en `talanton/segmento.py`, compartido con
+el directorio; se reexporta acá porque los conectores lo importan de este módulo.
 """
 
 from __future__ import annotations
@@ -13,65 +14,24 @@ import logging
 from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
+from ...segmento import RUBROS, ZONAS, Segmento
 from ..base import VacanteCruda
 
 log = logging.getLogger("talanton.portales")
 
-# Provincias y regiones, con el slug que usa cada portal. El valor es la clave
-# interna; cada conector lo traduce a su propia URL.
-ZONAS: list[tuple[str, str]] = [
-    ("caba", "Ciudad de Buenos Aires"),
-    ("gba", "GBA / Provincia de Buenos Aires"),
-    ("cordoba", "Córdoba"),
-    ("santa-fe", "Santa Fe / Rosario"),
-    ("mendoza", "Mendoza"),
-    ("tucuman", "Tucumán"),
-    ("neuquen", "Neuquén / Río Negro"),
-    ("salta", "Salta / Jujuy"),
-    ("entre-rios", "Entre Ríos"),
-    ("chubut", "Chubut / Santa Cruz"),
-    ("todo-el-pais", "Todo el país"),
+__all__ = [
+    "RUBROS",
+    "ZONAS",
+    "Segmento",
+    "Portal",
+    "Resultado",
+    "buscar_en_portales",
+    "aplicar_antiguedad",
+    "texto_de",
+    "atributo_de",
+    "nodos",
+    "PORTALES",
 ]
-
-# Rubros pensados para una consultora de selección en Argentina: los que
-# compran búsquedas de mando medio, no las ~200 categorías de cada portal.
-RUBROS: list[tuple[str, str]] = [
-    ("produccion", "Producción y manufactura"),
-    ("logistica", "Logística y transporte"),
-    ("mantenimiento", "Mantenimiento e ingeniería"),
-    ("construccion", "Construcción"),
-    ("agro", "Agro y alimentos"),
-    ("comercial", "Comercial y ventas"),
-    ("retail", "Retail y consumo masivo"),
-    ("administracion", "Administración y finanzas"),
-    ("rrhh", "Recursos humanos"),
-    ("tecnologia", "Tecnología y sistemas"),
-    ("salud", "Salud"),
-    ("gastronomia", "Gastronomía y hotelería"),
-]
-
-_ETIQUETA_ZONA = dict(ZONAS)
-_ETIQUETA_RUBRO = dict(RUBROS)
-
-
-@dataclass
-class Segmento:
-    """Qué buscar. Es lo que el usuario define en pantalla."""
-
-    zona: str = "todo-el-pais"
-    rubro: str | None = None
-    # Antigüedad mínima del aviso. Es *la* señal del producto: una búsqueda de
-    # más de 45 días es una que la empresa no está pudiendo cerrar sola.
-    dias_minimos: int = 0
-    tope: int = 60
-
-    @property
-    def zona_etiqueta(self) -> str:
-        return _ETIQUETA_ZONA.get(self.zona, self.zona)
-
-    @property
-    def rubro_etiqueta(self) -> str | None:
-        return _ETIQUETA_RUBRO.get(self.rubro) if self.rubro else None
 
 
 class Portal(Protocol):

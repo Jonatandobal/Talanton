@@ -64,6 +64,9 @@ RUBROS = {
 
 class Computrabajo:
     nombre = "computrabajo"
+    # HTML del servidor: no hace falta navegador. Es un atributo y no una
+    # constante suelta para que el diagnóstico pueda consultarlo.
+    necesita_navegador = False
 
     def url(self, segmento: Segmento) -> str:
         rubro = RUBROS.get(segmento.rubro or "")
@@ -77,8 +80,9 @@ class Computrabajo:
         return f"{BASE}/empleos"
 
     def buscar(self, segmento: Segmento) -> list[VacanteCruda]:
-        # `stealth=False`: es HTML del servidor y no hace falta navegador.
-        pagina = traer_pagina(self.url(segmento), timeout=25, stealth=False)
+        pagina = traer_pagina(
+            self.url(segmento), timeout=25, stealth=self.necesita_navegador
+        )
         crudas = []
         for nodo in nodos(pagina, SEL_AVISO)[: segmento.tope]:
             cruda = self._mapear(nodo)

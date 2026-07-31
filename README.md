@@ -57,21 +57,32 @@ que son pantallas de alta y configuración que se usan una vez.
 | *Más →* **Señales** | Cola de revisión de rondas de inversión y expansiones detectadas en posts |
 | Dentro del lead | **Asistente**: «¿conviene contactarlo?» y borradores que contestan el hilo |
 
-**Buscar empresas** es el camino principal, y el que invierte el orden del producto.
-Antes había que traer la lista de empresas —que es justamente el problema que uno
-viene a resolver— y después esperar a que publicaran algo. Ahora se define un
-segmento (zona, rubro, «publicados hace más de N días») y las empresas que aparecen
-publicando **ya son leads con señal**: si están publicando, están contratando. Se
-revisa el resultado en pantalla, se destilda lo que no sirve y se trae el resto como
-leads puntuados.
+**Buscar empresas** es el camino principal. Se define un segmento —zona, rubro y
+tramo de empleados— y salen las empresas a las que se les puede vender. Se revisa
+en pantalla, se destilda lo que no sirve y se trae el resto como leads puntuados y
+**vigilados**, así la corrida diaria les empieza a contar los días desde ese momento.
+
+**La empresa es el lead, el aviso es la excusa.** Es la regla que ordena todo el
+producto, y estuvo al revés una versión. Quién es cliente lo define el segmento;
+que además tenga una búsqueda abierta hace 92 días cambia *cómo* le escribís, no
+*si* es cliente. Por eso el tilde «sólo las que tengan una búsqueda abierta» viene
+**apagado**: encenderlo es decir «hoy quiero atacar sólo lo caliente».
+
+Son dos carriles independientes a propósito, y esa independencia es la lección de
+un error real: cuando los tres portales de avisos devolvieron 404, la pantalla
+informó *0 empresas* — que se lee como un dato sobre el mercado y no lo era. Hoy el
+listado de empresas sale de `talanton/directorio/` y no depende de que el scraping
+de avisos funcione; si los portales se caen, se pierde la señal, no los clientes.
 
 Dos cosas se descartan solas y no llegan a la base: las **consultoras de selección**,
 que son competencia y no clientes, y los **avisos perennes** tipo «Postulación
-espontánea», que nunca se cierran y por eso acumularían días para siempre y
-encabezarían el ranking sin ser una búsqueda real.
+espontánea», que nunca se cierran y por eso acumularían días para siempre.
 
 `Fuentes` salió del menú: era plomería —qué board tiene cada empresa— que nunca
 debería haber estado a la vista. La ruta sigue existiendo para los enlaces viejos.
+En su lugar hay **`/buscar/diagnostico`**, que muestra qué URL se consultó, qué
+devolvió y cuántos nodos matchea cada selector — para que un portal roto se vea
+como un portal roto.
 
 Dentro de cada lead, el intercambio con la empresa se ve como un **hilo de chat**:
 lo que mandamos de un lado, lo que contestaron del otro, en orden. Los mails se
@@ -135,7 +146,20 @@ El botón abre la ventana de redacción **ya escrita y ya abierta** —«Insisti
 directamente la plantilla de seguimiento— y al enviar vuelve al panel, porque el
 próximo mail del día está ahí y no en la ficha del que se acaba de mandar.
 
-**Ingesta** en tres carriles, del más barato al más caro:
+**Directorio de empresas** (`talanton/directorio/`) — de acá sale la lista para
+contactar de a una. Hoy con una fuente: **búsqueda de empresas de LinkedIn vía
+Apify**, que es la única que devuelve los tres ejes juntos —cantidad de empleados,
+rubro y zona— más el sitio web, que después alimenta la búsqueda de mails. Cuesta
+unos pocos dólares por corrida, sin abono, y necesita `TALANTON_APIFY_TOKEN`. Si no
+está configurado, la pantalla **lo dice** en vez de devolver una lista vacía.
+
+Agregar otra fuente es aislado: implementar `buscar(segmento) -> list[EmpresaCruda]`
+y sumarla a `_fuentes()`. Nunca trae personas — sólo datos firmográficos de empresa;
+los contactos se consiguen después y cada uno guarda su `fuente_url` para poder
+auditarlo y borrarlo si lo piden.
+
+**Ingesta de avisos** en tres carriles, del más barato al más caro. Aporta la señal
+que hace bueno al mail, no la lista de clientes:
 
 1. **APIs de ATS** (`talanton/ingest/ats.py`) — Greenhouse, Lever. JSON público, estable,
    con fecha de publicación real y sin anti-bot.
@@ -144,10 +168,9 @@ próximo mail del día está ahí y no en la ficha del que se acaba de mandar.
 3. **Portales HTML** — vía Scrapling, con selectores adaptativos y sesiones stealth
    sólo donde hace falta.
 4. **Portales de empleo argentinos** (`talanton/ingest/portales/`) — Computrabajo,
-   Bumeran y ZonaJobs. Es lo que alimenta **Buscar empresas**: en vez de vigilar
-   empresas conocidas, las descubre por segmento. Ahí es donde postea la PyME
-   argentina, que es el cliente que compra búsquedas de mando medio. Detalle y
-   contrapartidas: [`docs/portales.md`](docs/portales.md).
+   Bumeran y ZonaJobs. Ahí postea la PyME argentina. Aportan **señal**, no la lista
+   de empresas: qué está buscando cada una y desde cuándo. Detalle y contrapartidas:
+   [`docs/portales.md`](docs/portales.md).
 5. **LinkedIn Jobs vía Apify** (`talanton/ingest/apify.py`) — también descubre, pero
    sesga a medianas y grandes y a consultoras. Tiene contrapartidas de ToS que
    conviene leer antes: [`docs/linkedin.md`](docs/linkedin.md).
@@ -158,6 +181,13 @@ esos dos fallan y la búsqueda sigue con el que queda: un portal caído no frena
 demás. Los selectores están concentrados en constantes al principio de cada conector
 y **hay que verificarlos contra el HTML real la primera vez**: se escribieron contra
 la estructura documentada de cada sitio, no contra una respuesta capturada.
+
+Para eso está **`/buscar/diagnostico`**, y existe por un error que costó caro:
+`traer_pagina()` no chequeaba el código HTTP, así que un 404 volvía como página
+vacía pero válida, ningún selector matcheaba y la pantalla informaba *«0 avisos»*.
+Un sistema que confunde «no encontré» con «pregunté mal» hace sacar la conclusión
+equivocada sobre el propio mercado. Ahora el status se verifica y el diagnóstico
+muestra URL, status y nodos por selector.
 
 Las fuentes **se administran desde la pantalla Fuentes**, sin tocar archivos ni
 consola: cargás el nombre de una empresa y Talanton sondea Greenhouse, Lever, Ashby,

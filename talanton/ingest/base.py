@@ -73,6 +73,12 @@ def traer_pagina(url: str, timeout: int = 30, stealth: bool = False):
     """Devuelve una página parseable de Scrapling.
 
     `stealth=True` sólo para los dominios que lo necesitan: es mucho más caro.
+
+    Chequea el status como hace `traer_json`. No hacerlo costó caro: una URL mal
+    armada devolvía 404, la página venía vacía pero válida, ningún selector
+    matcheaba y la pantalla informaba «0 avisos». Es el peor modo de falla
+    posible —"no hay empresas" y "la URL no existe" se veían iguales— y deja al
+    usuario sacando la conclusión equivocada sobre su mercado.
     """
     if not SCRAPLING_DISPONIBLE:  # pragma: no cover
         raise RuntimeError(
@@ -82,8 +88,18 @@ def traer_pagina(url: str, timeout: int = 30, stealth: bool = False):
     if stealth:
         from scrapling.fetchers import StealthyFetcher
 
-        return StealthyFetcher.fetch(url, headless=True, timeout=timeout * 1000)
-    return Fetcher.get(url, timeout=timeout)
+        pagina = StealthyFetcher.fetch(url, headless=True, timeout=timeout * 1000)
+    else:
+        pagina = Fetcher.get(url, timeout=timeout)
+    verificar_status(pagina, url)
+    return pagina
+
+
+def verificar_status(pagina, url: str) -> None:
+    """Levanta si la respuesta no fue 200. Tolera páginas sin `status`."""
+    status = getattr(pagina, "status", None)
+    if status is not None and status != 200:
+        raise RuntimeError(f"{url} devolvió {status}")
 
 
 def parsear_fecha(valor: str | None) -> date | None:

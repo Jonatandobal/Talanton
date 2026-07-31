@@ -17,6 +17,7 @@ RUTAS = [
     "/tablero",
     "/avisos",
     "/buscar",
+    "/buscar/diagnostico",
     "/empezar",
     "/importar",
     "/mi-empresa",

@@ -59,7 +59,37 @@ descartan.
 3. Elegí un actor de LinkedIn Jobs en la [tienda de Apify](https://apify.com/store).
    Mirá que sea de avisos públicos y **que no pida cookie de sesión**.
 
-## Cargar una búsqueda
+## Buscar empresas (no avisos)
+
+Es el uso principal de Apify hoy y el que sostiene la pantalla **Buscar empresas**.
+Vive en `talanton/directorio/linkedin.py` y no hay que configurar nada más allá del
+token: con `TALANTON_APIFY_TOKEN` puesto, la pantalla ya funciona.
+
+Se le pasa el segmento —zona, rubro y tramo de empleados— y devuelve empresas con
+nombre, sitio web, industria, dotación y ciudad. Es **la única fuente que da los
+tres ejes juntos**, y el sitio web es lo que después alimenta la búsqueda de mails.
+
+Actor por defecto: `harvestapi/linkedin-company-search`. Se puede cambiar sin tocar
+código: los actores de la tienda aparecen y desaparecen, y quedar clavado a uno sería
+repetir el error de los selectores de portales.
+
+Un detalle del filtro de tamaño: LinkedIn no acepta un rango libre, ofrece tramos
+fijos (`51-200`, `201-500`, …). Pedir «50 a 300» consulta los tramos que se solapan
+y después se afina sobre el número real de cada empresa. Una empresa que **no**
+informa dotación se deja pasar a propósito: descartarla sería perder un cliente
+posible por un dato que falta.
+
+### Por qué esto es más seguro que lo de avisos
+
+Acá sólo se piden **páginas de empresa**: datos firmográficos públicos. Ni siquiera
+hay tentación de tocar perfiles de personas, que es lo que cae bajo la Ley 25.326 y
+lo que de verdad irrita a LinkedIn. Los contactos se consiguen después, por los
+caminos documentados en [`contactos.md`](contactos.md), y cada uno guarda su
+`fuente_url` para poder auditarlo y borrarlo si lo piden.
+
+La regla de la cookie sigue valiendo igual: **nunca**.
+
+## Cargar una búsqueda de avisos
 
 En la pantalla **Fuentes**, panel «Búsqueda en LinkedIn». La configuración es el JSON
 de entrada del actor, más dos campos propios:

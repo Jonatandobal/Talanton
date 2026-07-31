@@ -19,10 +19,21 @@ Lo mínimo:
 - **Seniority**: qué perfiles cubrís bien. Ahí está tu margen — un analista
   junior lo cubre RRHH publicando un aviso, un jefe de planta no.
 
-### 2. Conectá Gmail
+### 2. Poné el token de Apify
 
-En la misma pantalla. Sin esto podés cargar leads pero no escribirles desde acá.
-Paso a paso en [`gmail.md`](gmail.md).
+Es lo que permite buscar empresas por rubro, zona y cantidad de empleados. Se crea
+una cuenta en apify.com, se copia el token y se pega en Railway como
+`TALANTON_APIFY_TOKEN`. Cuesta unos pocos dólares por corrida de ~1.000 empresas,
+**sin abono**.
+
+Sin esto la pantalla de búsqueda te lo va a decir en vez de devolver una lista
+vacía, y podés seguir igual **importando una lista propia** —un Excel, una
+exportación de tu CRM, contactos de una feria— desde *Más → Importar una lista*.
+
+### 3. Conectá Gmail
+
+En la pantalla de Mi empresa. Sin esto podés cargar leads pero no escribirles desde
+acá. Paso a paso en [`gmail.md`](gmail.md).
 
 ---
 
@@ -30,39 +41,51 @@ Paso a paso en [`gmail.md`](gmail.md).
 
 ### Paso 1 — Elegí un segmento en Buscar empresas
 
-**Buscar empresas** → tres campos y listo:
+**Buscar empresas** → tres cosas y listo:
 
 | Campo | Qué poner |
 |---|---|
 | **Zona** | Una provincia o región. Empezá por donde ya tenés red. |
 | **Rubro** | **Uno solo**, el que mejor conocés. Es lo más importante de todo esto y explico por qué abajo. |
-| **Publicados hace más de** | 30 o 45 días la primera vez |
+| **Empleados desde/hasta** | Viene precargado de tu ICP. Para búsquedas de mando medio, 50 a 500 suele ser realista. |
 
-La antigüedad es el filtro que define el producto. Un aviso de 45 días no es un
-aviso: es una búsqueda que la empresa **no está pudiendo cerrar sola**. Ése es el
-momento exacto en que una consultora deja de ser un gasto y pasa a ser una salida.
+Eso define **a quién le podés vender**, y con eso alcanza para salir a contactar.
 
-Ojo con una cosa: los portales no siempre informan la fecha, y un aviso sin fecha
-queda afuera cuando pedís un mínimo. Es a propósito —suponer la antigüedad sería
-inventarla, y ese número termina en un mail al cliente—. Si la búsqueda vuelve
-vacía, bajá el mínimo antes que cambiar de rubro.
+Debajo hay un tilde, **«sólo las que tengan una búsqueda abierta»**, que viene
+apagado. Dejalo apagado la primera vez. Encenderlo es decir *«hoy quiero atacar
+sólo lo caliente»*: trae bastante menos volumen, pero cada mail abre con un dato
+concreto.
+
+Es la regla que ordena todo: **la empresa es el lead, el aviso es la excusa**. Que
+una empresa tenga una búsqueda estirada hace 45 días es el mejor momento para
+escribirle —es una búsqueda que no está pudiendo cerrar sola— pero no tenerla no la
+saca de tu mercado.
+
+Ojo con una cosa cuando enciendas el tilde: los portales no siempre informan la
+fecha, y un aviso sin fecha no cuenta como viejo. Es a propósito — suponer la
+antigüedad sería inventarla, y ese número termina en un mail al cliente.
 
 ### Paso 2 — Revisá y traé
 
-Sale una tabla ordenada de más viejo a más nuevo, con el aviso, los días que lleva
-abierto y un enlace al original. Todo viene tildado: destildá lo que no te sirva y
-apretá **Traer como leads**.
+Sale una tabla de empresas: nombre, rubro, cantidad de empleados, ciudad, y una
+columna **Señal** que muestra la búsqueda abierta cuando la hay y los días que
+lleva. Primero las que tienen señal, después el resto. Todo viene tildado:
+destildá lo que no te sirva y apretá **Traer como leads**.
 
 Dos cosas ya no van a estar en esa lista porque se descartan solas:
 
 - **Consultoras de selección** — son competencia, no clientes.
 - **Avisos perennes** («Postulación espontánea», «Sumate a nuestro equipo») — no
   son búsquedas, son buzones de CV. Nunca se cierran, así que acumularían días
-  para siempre y encabezarían el ranking sin significar nada.
+  para siempre y harían creer que la empresa está desesperada.
 
-Abajo de la tabla, **Qué pasó detrás** cuenta cuántos trajo cada portal y cuántos
-se descartaron por cada motivo. Si un portal no respondió también lo dice: uno
-caído no frena a los demás.
+Abajo de la tabla, **Qué pasó detrás** cuenta cuántas trajo cada fuente y cuántas
+se descartaron por cada motivo.
+
+Si la columna **Señal** viene vacía en todas, no quiere decir que nadie esté
+publicando: puede ser que los portales de avisos estén rotos.
+`/buscar/diagnostico` lo dice con todas las letras — qué URL se consultó, qué
+devolvió y qué selector dejó de matchear.
 
 ### Paso 3 — Conseguí los contactos
 
@@ -176,10 +199,11 @@ vale más que mandar los 50 mails hoy.
 | Qué | Costo |
 |---|---|
 | Railway (web + Postgres + cron) | Entra en el crédito de US$5/mes del plan Hobby |
+| Apify (buscar empresas) | ~US$3-5 por corrida de ~1.000 empresas, **sin abono** |
 | Portales de empleo argentinos | Gratis |
 | Buscar mails en la web de la empresa | Gratis, sin tope |
 | Hunter.io | Gratis, 25 búsquedas/mes |
 | Asistente (Claude) | Opcional, centavos por lectura de lead |
-| Apify (LinkedIn) | Sólo si lo usás, ~US$2-5 por corrida de 1.000 avisos |
 
-Nada de esto tiene abono mensual salvo Railway.
+Nada de esto tiene abono mensual salvo Railway. Apify se paga por corrida: si un mes
+no buscás empresas nuevas, no gastás.

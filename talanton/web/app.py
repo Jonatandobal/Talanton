@@ -769,7 +769,8 @@ def empezar(
 
 
 def _contexto_buscar(request: Request, db: Session, **extra):
-    from ..ingest.portales.base import RUBROS, ZONAS
+    from ..directorio import fuentes_configuradas
+    from ..segmento import RUBROS, ZONAS
 
     p = services.perfil(db)
     base = {
@@ -779,10 +780,12 @@ def _contexto_buscar(request: Request, db: Session, **extra):
         "exploracion": None,
         "traida": None,
         "error": None,
-        # El tramo de dotación sale del ICP: es lo que el usuario ya declaró que
-        # le sirve, y así no tiene que volver a contestarlo en cada búsqueda.
+        # El tramo de dotación se precarga del ICP —es lo que el usuario ya
+        # declaró que le sirve— pero queda editable, porque la fuente sabe
+        # filtrar por dotación y a veces uno quiere probar otro tramo.
         "dotacion_min": p.dotacion_min,
         "dotacion_max": p.dotacion_max,
+        "fuentes": fuentes_configuradas(),
     }
     base.update(extra)
     return _contexto(request, **base)
@@ -798,17 +801,23 @@ def buscar_empresas(
     request: Request,
     zona: str = Form("todo-el-pais"),
     rubro: str = Form(""),
+    dotacion_min: int = Form(0),
+    dotacion_max: int = Form(0),
     dias_minimos: int = Form(0),
+    solo_con_aviso: str | None = Form(None),
     db: Session = Depends(db_dependency),
 ):
-    """Mira los portales y muestra qué encontró. Todavía no guarda nada."""
-    from ..ingest.portales import Segmento
+    """Busca empresas del segmento y les adjunta la señal que haya. No guarda."""
+    from ..segmento import Segmento
 
     segmento = Segmento(
         zona=zona,
         rubro=rubro or None,
         # Un número negativo no significa nada y rompería el filtro.
+        dotacion_min=max(0, dotacion_min) or None,
+        dotacion_max=max(0, dotacion_max) or None,
         dias_minimos=max(0, dias_minimos),
+        solo_con_aviso=solo_con_aviso == "1",
     )
     try:
         exploracion = busqueda.explorar(db, segmento)
@@ -831,7 +840,7 @@ def buscar_empresas(
 
 @app.post("/buscar/traer", response_class=HTMLResponse)
 async def traer_hallazgos(request: Request, db: Session = Depends(db_dependency)):
-    """Guarda los avisos tildados como empresas, vacantes y leads puntuados."""
+    """Guarda las empresas tildadas como leads puntuados y las deja vigiladas."""
     formulario = await request.form()
     hallazgos = []
     for crudo in formulario.getlist("elegido"):
@@ -847,13 +856,38 @@ async def traer_hallazgos(request: Request, db: Session = Depends(db_dependency)
         return templates.TemplateResponse(
             request,
             "buscar.html",
-            _contexto_buscar(request, db, error="No tildaste ningún aviso."),
+            _contexto_buscar(request, db, error="No tildaste ninguna empresa."),
         )
 
     traida = busqueda.traer(db, hallazgos)
     db.commit()
     return templates.TemplateResponse(
         request, "buscar.html", _contexto_buscar(request, db, traida=traida)
+    )
+
+
+@app.get("/buscar/diagnostico", response_class=HTMLResponse)
+def diagnostico_portales(
+    request: Request,
+    zona: str = "todo-el-pais",
+    rubro: str = "",
+    db: Session = Depends(db_dependency),
+):
+    """Qué devuelve cada portal, crudo: URL, status y nodos por selector.
+
+    Existe por una razón concreta. Los conectores devolvieron «0 avisos» cuando
+    en realidad las URL daban 404, y desde el entorno de desarrollo no hay salida
+    a internet para comprobarlo. Este dato sólo puede venir de producción, y sin
+    él arreglar un selector es adivinar.
+    """
+    from ..diagnostico import revisar_portales
+    from ..segmento import Segmento
+
+    filas = revisar_portales(Segmento(zona=zona, rubro=rubro or None))
+    return templates.TemplateResponse(
+        request,
+        "diagnostico.html",
+        _contexto(request, filas=filas, zona=zona, rubro=rubro),
     )
 
 

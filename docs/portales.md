@@ -1,17 +1,27 @@
 # Portales de empleo argentinos
 
-Es lo que alimenta **Buscar empresas**: elegís zona y rubro y salen las empresas que
-están publicando ahora. Tres conectores en `talanton/ingest/portales/`.
+Tres conectores en `talanton/ingest/portales/` que aportan **señal**: qué está
+buscando cada empresa y desde cuándo.
+
+## Qué son y qué no son
+
+**No son de donde sale la lista de empresas.** Eso lo hace
+`talanton/directorio/`, y la separación importa: una versión anterior entraba por
+el aviso —buscaba búsquedas abiertas y las empresas salían de ahí— y cuando los tres
+portales devolvieron 404, la pantalla informó *0 empresas*. Eso se lee como un dato
+sobre el mercado y no lo era.
+
+Hoy, si estos tres se caen, se pierde el dato que hace bueno el mail. No se pierde
+ni un cliente.
 
 ## Por qué estos tres
 
 Porque acá postea la PyME argentina, que es exactamente el cliente que compra
 búsquedas de mando medio.
 
-- **Greenhouse y Lever** sirven para *vigilar* empresas que ya conocés, no para
-  descubrir: ninguna PyME argentina usa un ATS internacional.
-- **LinkedIn vía Apify** descubre, pero sesga a medianas y grandes y trae muchas
-  consultoras — justo lo que no sirve.
+- **Greenhouse y Lever** sirven para vigilar empresas que ya conocés: ninguna PyME
+  argentina usa un ATS internacional.
+- **LinkedIn Jobs vía Apify** sesga a medianas y grandes y trae muchas consultoras.
 
 | Portal | Cómo sirve el listado | Necesita navegador |
 |---|---|---|
@@ -61,21 +71,24 @@ SEL_EMPRESA = "a.it-blank, p.dFlex a, span.dIB"
 sitio, **no contra una respuesta capturada** — hay que verificarlos contra el HTML
 real la primera vez. Es la misma advertencia que aplicó al conector de Apify.
 
-Cómo verificarlos cuando un portal deja de traer nada:
+### Cómo se diagnostica: `/buscar/diagnostico`
 
-```bash
-python - <<'PY'
-from talanton.ingest.base import traer_pagina
-from talanton.ingest.portales.computrabajo import Computrabajo, SEL_AVISO
-portal = Computrabajo()
-from talanton.ingest.portales import Segmento
-pagina = traer_pagina(portal.url(Segmento(zona="caba")), stealth=False)
-print(len(pagina.css(SEL_AVISO)), "avisos encontrados")
-PY
-```
+Entrá a esa ruta en producción —es el único lugar con salida a internet— y por cada
+portal vas a ver la URL consultada, el status, el tamaño de la respuesta y **cuántos
+nodos matchea cada selector**. Se lee así:
 
-Si devuelve 0, el selector cambió. Abrí la URL en el navegador, mirá el HTML y
-ajustá la constante.
+| Qué ves | Qué significa | Dónde se arregla |
+|---|---|---|
+| Status ≠ 200 | La URL está mal armada | el método `url()` del conector |
+| Status 200, todos los selectores en 0 | El portal cambió el HTML | las constantes `SEL_*` |
+| Status 200, `aviso` > 0 y el resto en 0 | Cambió la estructura interna de la tarjeta | las constantes `SEL_*` |
+| Respuesta muy corta | Muro anti-bot o página de error | mirá la muestra de HTML |
+
+Esta pantalla existe por un bug propio: `traer_pagina()` **no chequeaba el código
+HTTP** —su hermana `traer_json()` sí— así que un 404 volvía como una página vacía
+pero válida, ningún selector matcheaba y todo el sistema informaba «0 avisos». Un
+sistema que confunde «no encontré» con «pregunté mal» hace sacar la conclusión
+equivocada sobre el propio mercado. El status ahora se verifica siempre.
 
 Scrapling trae emparejamiento adaptativo, que amortigua los cambios chicos —una clase
 renombrada, un `div` de más— pero no los rediseños.

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block titulo %}Diagnóstico de portales · Talanton{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Diagnóstico de portales</h1>
+    <p class="subtitulo">
+      Qué devuelve realmente cada portal de avisos: la URL que se consulta, qué
+      contestó y cuántos nodos matchea cada selector. Es la pantalla que hay que
+      mirar cuando la columna «Señal» viene vacía en todas las empresas.
+    </p>
+  </div>
+</div>
+
+<p class="alerta alerta-aviso" role="status">
+  Esto <strong>no</strong> afecta la búsqueda de empresas. Los portales aportan la
+  señal —qué está buscando cada empresa y desde cuándo—; si están rotos, se pierde
+  el dato para el mail, no la lista de empresas.
+</p>
+
+{% for fila in filas %}
+<section class="panel" aria-labelledby="d-{{ loop.index }}" style="margin-bottom:var(--s4)">
+  <div class="encabezado-panel">
+    <h2 id="d-{{ loop.index }}">{{ fila.portal }}</h2>
+    <span class="chip {{ 'ok' if fila.veredicto == 'Anda' else 'cerrada' }}">
+      {{ fila.veredicto }}
+    </span>
+  </div>
+
+  <ul class="timeline">
+    <li><strong>URL</strong>: <a href="{{ fila.url }}" target="_blank" rel="noopener">{{ fila.url }}</a></li>
+    <li><strong>Status</strong>: {{ fila.status if fila.status is not none else '—' }}</li>
+    <li><strong>Tamaño</strong>: {{ fila.bytes }} caracteres</li>
+  </ul>
+
+  {% if fila.error %}
+    <p class="alerta alerta-error" role="alert">{{ fila.error }}</p>
+  {% endif %}
+
+  {% if fila.selectores %}
+  <div class="tabla-envoltorio">
+    <table>
+      <caption class="sr-solo">Selectores de {{ fila.portal }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Selector</th>
+          <th scope="col">Nodos</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for selector, cuantos in fila.selectores.items() %}
+        <tr>
+          <td><code>{{ selector }}</code></td>
+          <td>{{ cuantos }}{% if cuantos == 0 %} — no matchea{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if fila.muestra %}
+  <details style="margin-top:var(--s3)">
+    <summary>Ver el principio del HTML</summary>
+    <pre style="overflow-x:auto; white-space:pre-wrap; word-break:break-word"><code>{{ fila.muestra }}</code></pre>
+  </details>
+  {% endif %}
+</section>
+{% endfor %}
+
+<p class="ayuda">
+  Cómo se lee: un <strong>status distinto de 200</strong> significa que la URL está
+  mal armada y se arregla en el método <code>url()</code> del conector. Status 200
+  con <strong>todos los selectores en 0</strong> significa que el portal cambió el
+  HTML y se arregla en las constantes <code>SEL_*</code> del mismo archivo. Detalle
+  en <code>docs/portales.md</code>.
+</p>
+{% endblock %}

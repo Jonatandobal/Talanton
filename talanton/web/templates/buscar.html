@@ -7,22 +7,32 @@
   <div>
     <h1>Buscar empresas</h1>
     <p class="subtitulo">
-      Elegí zona y rubro y Talanton mira los portales de empleo argentinos. Las
-      empresas que están publicando ahora son las que están contratando ahora:
-      no hay que cargarlas de antemano ni esperar a que aparezcan.
+      Zona, rubro y tamaño: las empresas a las que le podés vender. Si además
+      alguna tiene una búsqueda abierta hace rato, aparece marcada — eso cambia
+      con qué le escribís, no si es cliente.
     </p>
   </div>
 </div>
 
 {% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
 
+{% if not fuentes %}
+  <div class="alerta alerta-aviso" role="status">
+    <strong>Todavía no hay de dónde traer empresas.</strong>
+    Falta configurar <code>TALANTON_APIFY_TOKEN</code>, que es lo que permite
+    buscar por rubro, zona y cantidad de empleados. Mientras tanto podés
+    <a href="/empezar">importar una lista propia</a> —un Excel, una exportación de
+    tu CRM— y el resto del circuito funciona igual.
+  </div>
+{% endif %}
+
 {% if traida %}
   <p class="alerta alerta-ok" role="status">
     <strong>Guardado.</strong>
     {{ traida.empresas_nuevas }} empresa{{ 's' if traida.empresas_nuevas != 1 }} nueva{{ 's' if traida.empresas_nuevas != 1 }} ·
     {{ traida.empresas_actualizadas }} que ya tenías ·
-    {{ traida.vacantes_nuevas }} búsqueda{{ 's' if traida.vacantes_nuevas != 1 }} nueva{{ 's' if traida.vacantes_nuevas != 1 }}{% if traida.vacantes_repetidas %} ·
-    {{ traida.vacantes_repetidas }} que ya estaban registradas{% endif %}.
+    {{ traida.vigiladas }} quedaron vigiladas{% if traida.vacantes_nuevas %} ·
+    {{ traida.vacantes_nuevas }} búsqueda{{ 's' if traida.vacantes_nuevas != 1 }} registrada{{ 's' if traida.vacantes_nuevas != 1 }}{% endif %}.
   </p>
 
   {% if traida.leads %}
@@ -44,7 +54,8 @@
     </ul>
     <p class="ayuda" style="margin-top:var(--s4)">
       A las que no tengan mail, el <a href="/">Panel</a> las muestra en «Falta el
-      contacto» con el botón para buscarlo.
+      contacto» con el botón para buscarlo. Y desde hoy quedan vigiladas: en dos o
+      tres semanas van a tener histórico propio de búsquedas abiertas.
     </p>
   </section>
   {% endif %}
@@ -75,28 +86,52 @@
     </div>
 
     <div class="filtro">
-      <label for="dias_minimos">Publicados hace más de</label>
-      <select id="dias_minimos" name="dias_minimos"
-              aria-describedby="ayuda-dias">
-        {% for valor, etiqueta in [
-            (0, 'Cualquier antigüedad'),
-            (15, '15 días'),
-            (30, '30 días'),
-            (45, '45 días'),
-            (60, '60 días')] %}
-          <option value="{{ valor }}"
-            {{ 'selected' if segmento and segmento.dias_minimos == valor }}>{{ etiqueta }}</option>
-        {% endfor %}
-      </select>
+      <label for="dotacion_min">Empleados desde</label>
+      <input type="number" id="dotacion_min" name="dotacion_min" min="0" step="10"
+             value="{{ segmento.dotacion_min if segmento and segmento.dotacion_min else dotacion_min }}">
+    </div>
+
+    <div class="filtro">
+      <label for="dotacion_max">hasta</label>
+      <input type="number" id="dotacion_max" name="dotacion_max" min="0" step="10"
+             value="{{ segmento.dotacion_max if segmento and segmento.dotacion_max else dotacion_max }}">
     </div>
 
     <button class="btn" type="submit" id="boton-buscar">Buscar</button>
   </div>
+
+  <div class="campo" style="margin-top:var(--s3)">
+    <label for="solo_con_aviso" style="display:flex; gap:var(--s2); align-items:center">
+      <input type="checkbox" id="solo_con_aviso" name="solo_con_aviso" value="1"
+             {{ 'checked' if segmento and segmento.solo_con_aviso }}
+             aria-describedby="ayuda-aviso">
+      Sólo las que tengan una búsqueda abierta
+    </label>
+    <p class="ayuda" id="ayuda-aviso">
+      Apagado trae todas las empresas del segmento, que es lo que sirve para
+      contactar de a una. Encendido deja sólo las que están publicando ahora:
+      menos volumen, pero cada mail abre con un dato concreto.
+    </p>
+  </div>
+
+  <div class="filtro" style="margin-top:var(--s3); max-width:280px">
+    <label for="dias_minimos">Y esa búsqueda, publicada hace más de</label>
+    <select id="dias_minimos" name="dias_minimos" aria-describedby="ayuda-dias">
+      {% for valor, etiqueta in [
+          (0, 'Cualquier antigüedad'),
+          (15, '15 días'),
+          (30, '30 días'),
+          (45, '45 días'),
+          (60, '60 días')] %}
+        <option value="{{ valor }}"
+          {{ 'selected' if segmento and segmento.dias_minimos == valor }}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </div>
   <p class="ayuda" id="ayuda-dias">
-    La antigüedad es la señal que importa: un aviso de 45 días es una búsqueda
-    que la empresa no está pudiendo cerrar sola. Los portales no informan la
-    fecha exacta, así que los avisos sin fecha quedan afuera cuando pedís un
-    mínimo.
+    Un aviso de 45 días es una búsqueda que la empresa no está pudiendo cerrar
+    sola. Los portales no siempre informan la fecha exacta, así que un aviso sin
+    fecha no cuenta como viejo — suponerlo sería inventarlo.
   </p>
   <p class="ayuda" id="estado-buscar" role="status" aria-live="polite"></p>
 </form>
@@ -107,26 +142,26 @@
     <div class="panel">
       <div class="encabezado-panel">
         <h2>
-          {{ exploracion.hallazgos|length }} aviso{{ 's' if exploracion.hallazgos|length != 1 }}
-          en {{ exploracion.empresas }} empresa{{ 's' if exploracion.empresas != 1 }}
+          {{ exploracion.hallazgos|length }} empresa{{ 's' if exploracion.hallazgos|length != 1 }}
         </h2>
         <span class="chip ok">{{ exploracion.nuevas }} sin cargar todavía</span>
       </div>
       <p class="subtitulo">
-        De más viejo a más nuevo. Destildá lo que no te sirva y traé el resto.
+        Primero las que tienen una búsqueda estirada; después el resto, que son
+        clientes posibles igual. Destildá lo que no te sirva y traé el resto.
       </p>
 
       <div class="tabla-envoltorio">
       <table>
-        <caption class="sr-solo">Avisos encontrados en los portales</caption>
+        <caption class="sr-solo">Empresas encontradas</caption>
         <thead>
           <tr>
             <th scope="col"><span class="sr-solo">Traer</span></th>
-            <th scope="col">Abierta</th>
             <th scope="col">Empresa</th>
-            <th scope="col">Puesto</th>
-            <th scope="col">Ubicación</th>
-            <th scope="col">Portal</th>
+            <th scope="col">Rubro</th>
+            <th scope="col">Empleados</th>
+            <th scope="col">Ciudad</th>
+            <th scope="col">Señal</th>
           </tr>
         </thead>
         <tbody>
@@ -137,22 +172,28 @@
             <td>
               <input type="checkbox" id="h{{ loop.index }}" name="elegido"
                      value='{{ h.payload | tojson }}' checked>
-              <label class="sr-solo" for="h{{ loop.index }}">
-                Traer {{ h.titulo }} de {{ h.empresa }}
-              </label>
+              <label class="sr-solo" for="h{{ loop.index }}">Traer {{ h.empresa }}</label>
             </td>
-            <td>{{ h.antiguedad_texto }}</td>
             <td>
-              <div class="celda-titulo">{{ h.empresa }}</div>
+              <div class="celda-titulo">
+                {% if h.fuente_url %}
+                  <a href="{{ h.fuente_url }}" target="_blank" rel="noopener">{{ h.empresa }}</a>
+                {% else %}{{ h.empresa }}{% endif %}
+              </div>
               {% if h.ya_estaba %}<div class="celda-sub">Ya la tenías</div>{% endif %}
             </td>
+            <td>{{ h.industria or '—' }}</td>
+            <td>{{ h.tamano_texto }}</td>
+            <td>{{ h.ciudad or '—' }}</td>
             <td>
-              {% if h.url %}
-                <a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.titulo }}</a>
-              {% else %}{{ h.titulo }}{% endif %}
+              {% if h.tiene_senal %}
+                {% if h.aviso_url %}
+                  <a href="{{ h.aviso_url }}" target="_blank" rel="noopener">{{ h.senal_texto }}</a>
+                {% else %}{{ h.senal_texto }}{% endif %}
+              {% else %}
+                <span class="celda-sub">{{ h.senal_texto }}</span>
+              {% endif %}
             </td>
-            <td>{{ h.ubicacion or '—' }}</td>
-            <td>{{ h.portal }}</td>
           </tr>
         {% endfor %}
         </tbody>
@@ -166,38 +207,55 @@
   </form>
   {% else %}
     <div class="panel">
-      <p class="vacio">
-        Los portales no devolvieron nada para ese segmento.
-        {% if segmento and segmento.dias_minimos %}
-          Probá bajando la antigüedad mínima: es el filtro que más recorta.
-        {% else %}
-          Probá con otra zona o sin rubro.
-        {% endif %}
-      </p>
+      {% if not exploracion.hubo_donde_buscar %}
+        <p class="vacio">
+          No se consultó ninguna fuente porque no hay ninguna configurada. Esto no
+          quiere decir que no haya empresas — quiere decir que no preguntamos.
+        </p>
+      {% elif exploracion.fallidas %}
+        <p class="vacio">
+          Las fuentes no respondieron: {{ exploracion.fallidas | join('; ') }}.
+          Tampoco esto significa que no haya empresas.
+        </p>
+      {% else %}
+        <p class="vacio">
+          No apareció ninguna empresa para ese segmento.
+          {% if segmento and segmento.solo_con_aviso %}
+            Probá destildando «sólo las que tengan una búsqueda abierta»: es el
+            filtro que más recorta.
+          {% else %}
+            Probá con otra zona, sin rubro, o ampliando el tramo de empleados.
+          {% endif %}
+        </p>
+      {% endif %}
     </div>
   {% endif %}
 
-  {% if exploracion.descartes or exploracion.fallidos or exploracion.por_portal %}
+  {% if exploracion.descartes or exploracion.fallidas or exploracion.por_fuente
+        or exploracion.sin_configurar %}
   <section class="panel" aria-labelledby="t-detras" style="margin-top:var(--s4)">
     <h2 id="t-detras">Qué pasó detrás</h2>
     <ul class="timeline">
-      {% for portal, cuantos in exploracion.por_portal.items() %}
-        <li><strong>{{ portal }}</strong>: {{ cuantos }} aviso{{ 's' if cuantos != 1 }}</li>
+      {% for fuente, cuantas in exploracion.por_fuente.items() %}
+        <li><strong>{{ fuente }}</strong>: {{ cuantas }} empresa{{ 's' if cuantas != 1 }}</li>
       {% endfor %}
-      {% for motivo, cuantos in exploracion.descartes.items() %}
-        <li>{{ cuantos }} descartado{{ 's' if cuantos != 1 }}: {{ motivo }}</li>
+      {% for motivo, cuantas in exploracion.descartes.items() %}
+        <li>{{ cuantas }} descartada{{ 's' if cuantas != 1 }}: {{ motivo }}</li>
+      {% endfor %}
+      {% for fuente in exploracion.sin_configurar %}
+        <li><strong>{{ fuente }}</strong>: sin configurar, no se consultó</li>
       {% endfor %}
     </ul>
-    {% if exploracion.fallidos %}
+    {% if exploracion.fallidas %}
       <p class="ayuda">
-        No respondieron: {{ exploracion.fallidos | join('; ') }}. Los portales que
-        sí respondieron ya están arriba — uno caído no frena a los demás.
+        No respondieron: {{ exploracion.fallidas | join('; ') }}.
       </p>
     {% endif %}
     <p class="ayuda">
       Las consultoras de selección se descartan solas: son competencia, no
-      clientes. Los avisos tipo «Postulación espontánea» también, porque nunca se
-      cierran y falsearían los días abiertos.
+      clientes. Si la columna «Señal» viene vacía en todas, puede ser que los
+      portales de avisos estén rotos y no que nadie publique —
+      <a href="/buscar/diagnostico">revisalo acá</a>.
     </p>
   </section>
   {% endif %}
@@ -206,8 +264,8 @@
 
 {% block scripts %}
 <script>
-/* Consultar tres portales lleva su tiempo y uno de ellos abre un navegador de
-   verdad. Sin aviso, lo natural es apretar de nuevo y disparar dos búsquedas. */
+/* Buscar empresas dispara una corrida en Apify y puede consultar tres portales,
+   uno de ellos con navegador. Sin aviso, lo natural es apretar de nuevo. */
 (function () {
   const forma = document.getElementById("forma-buscar");
   if (!forma) return;
@@ -217,7 +275,8 @@
     if (boton) { boton.disabled = true; boton.textContent = "Buscando…"; }
     if (estado) {
       estado.textContent =
-        "Mirando los portales de empleo. Puede tardar hasta un minuto.";
+        "Buscando empresas del segmento. Puede tardar un par de minutos: " +
+        "no cierres esta pestaña.";
     }
   });
 })();
